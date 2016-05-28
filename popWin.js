@@ -48,6 +48,54 @@
 	//reborn
 
 //======================================================================================================================
+	//弹窗管理器
+	function PopWinController(){
+
+		this.alertWinArr = {};
+
+		this.bindEvent();
+	}
+
+	PopWinController.prototype = {
+		pushThis : function (obj) {
+			var id = obj.winId ? obj.winId : obj.alertId;
+			this.alertWinArr[id] = obj
+		},
+		deleteThis : function (obj){
+			var id = obj.winId ? obj.winId : obj.alertId;
+			this.alertWinArr[id] = null;
+			delete this.alertWinArr.id;
+		},
+		bindEvent : function () {
+			var t = this;
+
+			//点击esc推出
+			document.body.onkeydown = function(e){//按esc删除
+				if(e.keyCode == 27){
+					//找到z-index最大值
+					var theMax = {};
+					theMax['z-index'] = 0;
+
+					for(var key in t.alertWinArr){
+						if(t.alertWinArr[key]){
+							if(t.alertWinArr[key]['z-index'] > theMax['z-index']);
+							theMax = t.alertWinArr[key];
+						}
+					}
+					if($('#' + theMax.alertId + ' .alertTitle .theCloseBtn').length > 0 ){
+						$('#' + theMax.alertId + ' .alertTitle .theCloseBtn').trigger('click');
+					}else if($('#' + theMax.winId + ' .winTitle .theCloseBtn').length > 0){
+						$('#' + theMax.winId + ' .winTitle .theCloseBtn').trigger('click');
+					}
+				}
+			}
+
+		}
+	}
+
+	//弹窗管理器
+	var popWinController = new PopWinController
+
 
 	function Dialog(alertId,title,obj){//小弹窗
 		if(document.getElementById(alertId)){//防止alertId重复
@@ -58,7 +106,6 @@
 		this.title = title;
 		this.hasCloseBtn = (obj['hasCloseBtn'] == undefined) ? true : obj['hasCloseBtn'];
 		this.width = obj['width'] ? obj['width'] : '460px';
-		//this.height = obj['height'] ? obj['height'] : '200px';
 		this.height = '400px';
 
 		this.marginTop = obj['margin-top'] ? obj['margin-top'] : "100px"
@@ -68,6 +115,8 @@
 		for(var key in btns){
 			this.bottomBtn += '<button class = "btn bottomBtn ' + key + '">' + btns[key] + '</button>'
 		}
+		this['z-index'] = obj['z-index'] ? obj['z-index'] : 5000;
+		this['hasMaskAgain'] = obj['hasMaskAgain'] ? obj['hasMaskAgain'] : false;
 
 		this.theMask = appendAlert('','theMask');
 		this.theAlertBox = appendAlert(this.alertId,'alertBox',this.theMask);
@@ -77,6 +126,8 @@
 		}
 
 		this._init();
+
+		popWinController.pushThis(this);
 
 
 
@@ -109,12 +160,16 @@
 
 			var t = this,
 				maskNum = $('.theMask').length,
-				alertMarginTop = this.marginTop;
+				alertMarginTop = this.marginTop,
+				zIndex = this['z-index'];
+
+			this['z-index'] +=  maskNum*10
 
 
 			if(this.title){//如果有标题则设置标题
+				var closeObj = (this.theCloseBtn == undefined)? '' : this.theCloseBtn;
 				$(this.theAlertBox).append($(
-					'<div class = "alertTitle">' + '<span>' + this.title + '</span>' + this.theCloseBtn + '</div>' +
+					'<div class = "alertTitle">' + '<span>' + this.title + '</span>' + closeObj + '</div>' +
 					'<div class = "alertBody"></div>' +
 					'<div class = "alertFooter">' + this.bottomBtn + '</div>'
 				))
@@ -134,9 +189,10 @@
 				'position': 'fixed',
 				'left': 0,
 				'top': 0,
-				'z-index': 5000 + maskNum * 10,
-				'backgroundColor': maskNum <= 1 ? 'rgba(227, 227, 227,0.6)' : 'none',
-				'overflow-y':'auto',
+				'z-index': parseInt(zIndex) + maskNum * 10,
+				'backgroundColor': maskNum <= 1 ? 'rgba(227, 227, 227,0.6)' :(this['hasMaskAgain'] ? 'rgba(227, 227, 227,0.6)' : 'none'),
+				'display':'none',
+				//'overflow-y':'auto',
 			})
 
 			$(this.theAlertBox).css({
@@ -147,7 +203,7 @@
 				'box-shadow':'0 0 4px #aaaaaa',
 				'background-color':'#fff',
 				'position':'relative',
-				'overflow-y':'auto',
+				//'overflow-y':'auto',
 
 			})
 
@@ -185,14 +241,12 @@
 			$(this.theAlertBox).find('.alertBody').css({//主体
 				'padding':'30px 0',
 				'max-height':this.height,
-				'overflow-y':'auto',
+				//'overflow-y':'auto',
 			})
 
 			$(this.theAlertBox).find('.alertFooter').css({//按钮体
-				//'height':'40px',
 				'text-align':'center',
 				'line-height':'40px',
-				'border-top':'1px solid rgb(238, 236, 236)',
 				'padding':'20px 0',
 
 			}).find('.bottomBtn').css({
@@ -211,20 +265,14 @@
 				'margin-left':'0',
 			})
 
-			if($('.theMask').length == 1){
-				document.body.onkeydown = function(e){//按esc删除
-					if(e.keyCode == 27){
-						if($('.theMask').length > 1){
-							$('.theMask')[$('.theMask').length-1].remove();
-						}else if($('.theMask').length == 1){
-							t.rmAll()
-						}
-					}
-				}
-			}
 
-			$(document).on('click','#' + this.alertId + ' .cancel',function(){
+			//一些点击事件
+			$('#' + t.alertId + ' .alertTitle .theCloseBtn').click(function(){
 				t.rmThis();
+			})
+
+			$('#' + t.alertId + ' .cancel').on('click',function(){
+				$('#' + t.alertId + ' .alertTitle .theCloseBtn').trigger('click');
 			})
 
 			document.body.style.overflow = 'hidden';
@@ -234,6 +282,7 @@
 			if(document.getElementById(this.alertId)){
 				$(this.theMask).remove();
 			}
+			popWinController.deleteThis(this);
 			document.body.style.overflow = 'auto'
 		},
 
@@ -266,21 +315,37 @@
 			if(this.callback){
 				this.callback.call(this.theAlertBox);
 			}
-
-
-
-
-
 		},
 
 		appendDom : function(dom){//此处dom应为拼接好的字符串；
-			$(this.theAlertBox).find('.alertBody').append($(dom));
-			var $height = ($(document.body).height() - $(this.theAlertBox).height())/2;
-			$height = $height < 0 ? 0 : $height;
+			$(this.theAlertBox).find('.alertBody').html($(dom));
+			//防止闪一下,加了个fadeInd()
+			$(this.theMask).fadeIn(100)
 
+			var thisAlertBox = $('#' + this.alertId);
+			var $height = ($(document.body).height() - thisAlertBox.height())/2;
+			$height = $height < 0 ? 0 : $height;
 			$(this.theAlertBox).css({
 				'margin-top': parseInt($height) + 'px',
 			})
+
+			var t = this;
+
+			var timer = setTimeout(function(){
+				$(t.theMask).mCustomScrollbar({
+					autoHideScrollbar:true,
+					theme:'minimal',
+					alwaysShowScrollbar: 1,
+				});
+
+				$(t.theAlertBox).find('.alertBody').mCustomScrollbar({
+					autoHideScrollbar:true,
+					theme:'minimal',
+					alwaysShowScrollbar: 1,
+				})
+
+				clearTimeout(timer);
+			},2)
 		},
 		bindEvent : function(callback){
 			var callback = callback?callback:function(){};
@@ -288,6 +353,55 @@
 			callback.call(this.theAlertBox);
 		}
 	};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 	function PopWin(winId,title,obj){
@@ -316,17 +430,17 @@
 		this.titleIcon = obj['titleIcon'] ? obj['titleIcon'] : 'icon-off-hot';
 		var btns = obj['bottomBtn'] ? obj['bottomBtn'] : false;
 		this.bottomBtn = '';
+		this['z-index'] = obj['z-index'] ? obj['z-index'] : 999;
 
 		for(var key in btns){
 			this.bottomBtn += '<button class = "btn bottomBtn ' + key + '">' + btns[key] + '</button>'
 		}
 
 		this.title = '<div class = "winTitle">' +
-			'<span class = "titleBtn icon"><i class = "' + this.titleIcon + '"></i></span>' +
 			'<span class = "title">' + this.titleName + '</span>' +
-			'<span class = "titleBtn theCloseBtn"><i class = "icon icon-close"></i></span>' +
+			'<button class = "titleBtn theCloseBtn"><i class = "icon icon-close"></i></button>' +
 			'</div>';
-		this.body = '<div class = "winBody"></div>';
+		this.body = '<div class = "winBody"><img class="loadingImg loading-win-body" src="../../img/loading.gif"><img class="loadingImg loading-win-text" src="../../img/loadingText.gif"></div>';
 		this.footer = '<div class = "winFooter">' + this.bottomBtn + '</div>'
 		//设置dom
 		this.$win = $('<div class = "alertWin" id = "' + this.winId + '"></div>');
@@ -341,9 +455,15 @@
 		this.timer = 200;
 
 		this.init();
+		popWinController.pushThis(this);
 
 
 	};
+
+	function GetLoadingMarginTopValue(upValue, loadingSize) {
+		var height = window.innerHeight / 2 - upValue - loadingSize;
+		return Math.max(30, height);
+	}
 
 	PopWin.prototype = {
 		init : function(){
@@ -351,7 +471,10 @@
 				$tWin = t.$win,
 				from = this.from,
 				upFooterHeight = 75,
+				loadingSize = 70,
 				winLen = $('.alertWin').length;
+
+			this['z-index'] +=  winLen*10
 
 			$tWin.css({
 				'width':'100%',
@@ -359,7 +482,7 @@
 				'position':'fixed',
 				'left':from['left'],
 				'top':from['top'],
-				'z-index':999 + winLen*10,
+				'z-index':this['z-index'],
 				'background-color':'#fff'
 			})
 
@@ -371,24 +494,20 @@
 				'line-height' : upFooterHeight + 'px',
 				'color':'#555555',
 				'font-size':'22px',
-			})
-			$tWin.find('.winTitle .icon').css({
-				'float':'left',
-				'margin-left':'10px',
-				'width' : upFooterHeight + 'px',
-				'height' : upFooterHeight + 'px',
-				'cursor':'pointer',
-				'text-align': 'center',
-				'line-height': upFooterHeight + 'px',
-				'color':'#999999',
+				'position':'relative',
 			})
 
+
 			$tWin.find('.winTitle .theCloseBtn').css({
-				'float':'right',
-				'margin-right':'10px',
+				'position':'absolute',
+				'top':0,
+				'right':'10px',
 				'width' : upFooterHeight + 'px',
 				'height' : upFooterHeight + 'px',
 				'cursor':'pointer',
+				'background':'#fff',
+				'font-size': '24px',
+				'color': '#bbb'
 			})
 
 			if(this.bottomBtn){
@@ -408,6 +527,25 @@
 				'-webkit-scrollbar-button':'background-color: #7c2929',
 				'-webkit-scrollbar-corner': 'background-color: black',
 
+			})
+
+			$tWin.find('.winBody .loadingImg').css({
+				'display':'block',
+				'margin':'auto',
+				'margin-bottom':'20px',
+				// 'width':'150px',
+				// 'height' :'25px'
+			})
+			$tWin.find('.winBody .loading-win-body').css({
+				'width': loadingSize + 'px',
+				'height': loadingSize + 'px',
+				'margin-top': GetLoadingMarginTopValue(upFooterHeight, loadingSize) + 'px'
+			})
+			$tWin.find('.winBody .loading-win-text').css({
+				'width':'80px',
+				'height':'13.468px',
+				'padding-left':'15px',
+				'margin-top': '-7px'
 			})
 
 
@@ -433,7 +571,6 @@
 			})
 
 
-
 			$(document.body).append(t.$win)
 
 			var timer = setTimeout(function(){
@@ -443,17 +580,25 @@
 
 
 			//一些点击事件
-			$tWin.find('.winTitle .theCloseBtn').click(function(){
+			$('#' + t.winId + ' .winTitle .theCloseBtn').click(function(){
 				t.rmThis();
 			})
 
-			$tWin.find('.winTitle .icon').click(function(){
-				t.rmThis();
+
+			$('#' + t.winId + ' .cancel').click(function () {
+				console.log('#' + t.winId + ' .winTitle .theCloseBtn')
+				$('#' + t.winId + ' .winTitle .theCloseBtn').trigger('click');
 			})
 
-			$(document).on('click','#' + this.winId + ' .cancel',function(){
-				t.rmThis();
-			})
+
+
+			// resize事件
+			$(document).on('resize', function () {
+				$('.winBody .loading-win-body').css('margin-top', GetLoadingMarginTopValue(upFooterHeight, loadingSize) + 'px');
+			});
+
+
+
 		},
 
 		rmThis:function(){
@@ -464,6 +609,8 @@
 			t.$win.animate({'top': t.from['top'],'left': t.from['left']},t.timer,'swing',function(){
 				t.$win.remove();
 			})
+			popWinController.deleteThis(this);
+
 		},
 
 		reborn : function(){
@@ -497,7 +644,24 @@
 		},
 
 		appendDom : function(str){
-			this.$win.find('.winBody').append($(str));
+			var t = this;
+			$('#' + this.winId).find('.winBody').html(str);
+			var timer = setTimeout(function (){
+				//优化滚动条
+				$('#' + t.winId).find('.left-box').mCustomScrollbar({
+					autoHideScrollbar:true,
+					theme:'minimal',
+					alwaysShowScrollbar: 1,
+				});
+				$('#' + t.winId).find('.middle-box').mCustomScrollbar({
+					autoHideScrollbar:true,
+					theme:'minimal',
+					alwaysShowScrollbar: 1,
+				});
+
+				clearTimeout(timer)
+			},100)
+
 		},
 
 		bindEvent : function(callBack){
@@ -506,5 +670,9 @@
 			callBack.call(this.$win);
 		}
 	};
+
+
+
+
 
 
