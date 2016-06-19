@@ -1,4 +1,5 @@
-# alertWindow
+# popWin_js
+一个弹窗控件
 
 
  默认mask的class为'theMask';
